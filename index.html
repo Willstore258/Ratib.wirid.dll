@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kumpulan Ratib & Wirid</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: #f4f6f9;
+    color: #222;
+    padding: 16px;
+    line-height: 1.7;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  header h1 {
+    color: #2c3e50;
+    font-size: 22px;
+    margin-bottom: 6px;
+  }
+
+  header .meta {
+    font-size: 13px;
+    color: #777;
+  }
+
+  /* Tab kategori */
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+
+  .tab {
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: #e0e6ed;
+    color: #2c3e50;
+    font-size: 13px;
+    cursor: pointer;
+    border: none;
+    transition: 0.2s;
+  }
+
+  .tab:hover { background: #cfd8e3; }
+  .tab.active {
+    background: #16a085;
+    color: #fff;
+  }
+
+  /* Search */
+  .search-box {
+    max-width: 500px;
+    margin: 0 auto 20px;
+  }
+
+  .search-box input {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid #ccd6e0;
+    font-size: 14px;
+    outline: none;
+  }
+
+  .search-box input:focus {
+    border-color: #16a085;
+  }
+
+  /* Card bacaan */
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    border-left: 4px solid #16a085;
+  }
+
+  .card .nomor {
+    display: inline-block;
+    background: #16a085;
+    color: #fff;
+    font-size: 12px;
+    padding: 2px 10px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+  }
+
+  .arabic {
+    font-family: 'Traditional Arabic', 'Amiri', 'Scheherazade', serif;
+    font-size: 26px;
+    line-height: 2.2;
+    direction: rtl;
+    text-align: right;
+    color: #1a1a1a;
+    margin-bottom: 12px;
+    white-space: pre-line;
+  }
+
+  .latin {
+    font-style: italic;
+    color: #555;
+    font-size: 14px;
+    margin-bottom: 8px;
+    white-space: pre-line;
+  }
+
+  .terjemah {
+    color: #333;
+    font-size: 14px;
+    padding-top: 8px;
+    border-top: 1px dashed #e0e0e0;
+    white-space: pre-line;
+  }
+
+  .label {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: bold;
+    color: #16a085;
+    margin-right: 6px;
+    text-transform: uppercase;
+  }
+
+  #loading, #error {
+    text-align: center;
+    color: #888;
+    font-style: italic;
+    padding: 30px;
+  }
+
+  #error { color: #c0392b; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="judul">Memuat...</h1>
+  <div class="meta" id="meta"></div>
+</header>
+
+<div class="search-box">
+  <input type="text" id="search" placeholder="🔍 Cari bacaan (arab, latin, atau terjemah)..." />
+</div>
+
+<div class="tabs" id="tabs"></div>
+
+<div id="konten">
+  <p id="loading">⏳ Memuat data...</p>
+</div>
+
+<script>
+let semuaData = [];
+
+async function loadData() {
+  try {
+    const res = await fetch('wirid.json');
+    if (!res.ok) throw new Error('Gagal memuat data.json');
+
+    const json = await res.json();
+    const d = json.data;
+
+    // Header
+    document.getElementById('judul').textContent = d.title;
+    document.getElementById('meta').textContent =
+      `${d.total_verses} bacaan · Kategori: ${d.category_label}`;
+
+    // Tabs kategori
+    renderTabs(d.available_categories, d.category);
+
+    // Simpan data
+    semuaData = d.data;
+
+    // Render
+    renderData(semuaData);
+
+  } catch (err) {
+    document.getElementById('konten').innerHTML =
+      `<p id="error">❌ Error: ${err.message}</p>`;
+  }
+}
+
+function renderTabs(categories, activeKey) {
+  const tabsEl = document.getElementById('tabs');
+  tabsEl.innerHTML = '';
+
+  Object.entries(categories).forEach(([key, label]) => {
+    const btn = document.createElement('button');
+    btn.className = 'tab' + (key === activeKey ? ' active' : '');
+    btn.textContent = label;
+    btn.onclick = () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      // Karena JSON Anda hanya berisi 1 kategori (ratib),
+      // klik tab lain hanya menampilkan pesan.
+      if (key !== activeKey) {
+        document.getElementById('konten').innerHTML =
+          `<p id="loading">Kategori "${label}" belum tersedia di file ini.</p>`;
+      } else {
+        renderData(semuaData);
+      }
+    };
+    tabsEl.appendChild(btn);
+  });
+}
+
+function renderData(items) {
+  const konten = document.getElementById('konten');
+  konten.innerHTML = '';
+
+  if (!items || items.length === 0) {
+    konten.innerHTML = '<p id="loading">Tidak ada data.</p>';
+    return;
+  }
+
+  // Deduplikasi: buang item yang arabic-nya sama persis dengan sebelumnya
+  const unique = [];
+  let prev = null;
+  items.forEach(item => {
+    if (item.arabic !== prev) {
+      unique.push(item);
+      prev = item.arabic;
+    }
+  });
+
+  unique.forEach((item, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    let html = `<span class="nomor">#${i + 1}</span>`;
+
+    if (item.arabic) {
+      html += `<div class="arabic">${escapeHtml(item.arabic)}</div>`;
+    }
+    if (item.latin) {
+      html += `<div class="latin"><span class="label">Latin</span>${escapeHtml(item.latin)}</div>`;
+    }
+    if (item.terjemah) {
+      html += `<div class="terjemah"><span class="label">Terjemah</span>${escapeHtml(item.terjemah)}</div>`;
+    }
+
+    card.innerHTML = html;
+    konten.appendChild(card);
+  });
+}
+
+// Pencarian
+document.getElementById('search').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase().trim();
+  if (!q) return renderData(semuaData);
+
+  const filtered = semuaData.filter(item =>
+    (item.arabic || '').toLowerCase().includes(q) ||
+    (item.latin || '').toLowerCase().includes(q) ||
+    (item.terjemah || '').toLowerCase().includes(q)
+  );
+  renderData(filtered);
+});
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+loadData();
+</script>
+</body>
+</html>
